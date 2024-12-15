@@ -1,4 +1,4 @@
-// server.js (Backend with fixed CORS issue)
+// server.js (Backend with logging for mail and pwd)
 const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
@@ -10,9 +10,7 @@ const db = new sqlite3.Database(path.join(__dirname, 'database', 'users.db'));
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-// Configure CORS to allow all origins (temporary for debugging)
-app.use(cors());
+app.use(cors()); // Configure CORS to allow all origins
 
 // Create table if it doesn't exist
 db.run(`CREATE TABLE IF NOT EXISTS users (
@@ -29,6 +27,11 @@ app.post('/login', (req, res) => {
         return res.status(400).json({ error: 'Email and password are required.' });
     }
 
+    // Log the received data (mail and pwd)
+    console.log(`Correo recibido: ${mail}`);
+    console.log(`Contraseña recibida: ${pwd}`);
+
+    // Insert user into the database
     db.run(`INSERT INTO users (email, password) VALUES (?, ?)`, [mail, pwd], (err) => {
         if (err) {
             if (err.message.includes('UNIQUE constraint failed')) {
