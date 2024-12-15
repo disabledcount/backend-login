@@ -1,4 +1,4 @@
-// server.js
+// server.js (Backend with fixed CORS issue)
 const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
@@ -11,56 +11,43 @@ const db = new sqlite3.Database(path.join(__dirname, 'database', 'users.db'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// CORS configurado para permitir solo el dominio del frontend
-const allowedOrigins = ['https://your-frontend-domain.vercel.app'];
-app.use(cors({
-    origin: (origin, callback) => {
-        if (!origin || allowedOrigins.includes(origin)) {
-            return callback(null, true);
-        }
-        callback(new Error('Not allowed by CORS'));
-    }
-}));
+// Configure CORS to allow all origins (temporary for debugging)
+app.use(cors());
 
-// Crear tabla si no existe
+// Create table if it doesn't exist
 db.run(`CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     email TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL
 )`);
 
-// Ruta para guardar usuarios
+// Route to save users
 app.post('/login', (req, res) => {
     const { mail, pwd } = req.body;
 
     if (!mail || !pwd) {
-        return res.status(400).json({ error: 'Faltan datos obligatorios' });
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(mail)) {
-        return res.status(400).json({ error: 'Formato de correo inválido' });
+        return res.status(400).json({ error: 'Email and password are required.' });
     }
 
     db.run(`INSERT INTO users (email, password) VALUES (?, ?)`, [mail, pwd], (err) => {
         if (err) {
-            if (err.message.includes('UNIQUE constraint')) {
-                return res.status(409).json({ error: 'El correo ya está registrado' });
+            if (err.message.includes('UNIQUE constraint failed')) {
+                return res.status(409).json({ error: 'Email already registered.' });
             }
             console.error(err.message);
-            return res.status(500).json({ error: 'Error al guardar los datos' });
+            return res.status(500).json({ error: 'Internal server error.' });
         }
-        res.json({ success: 'Usuario registrado' });
+        res.json({ success: 'User registered successfully.' });
     });
 });
 
-// Ruta para verificar si el servidor funciona
+// Health check route
 app.get('/', (req, res) => {
-    res.send('Backend funcionando correctamente.');
+    res.send('Backend is working correctly.');
 });
 
-// Inicia el servidor
+// Start the server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`Servidor corriendo en http://localhost:${PORT}`);
+    console.log(`Server running at http://localhost:${PORT}`);
 });
