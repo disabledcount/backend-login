@@ -1,3 +1,4 @@
+// server.js
 const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
@@ -9,7 +10,17 @@ const db = new sqlite3.Database(path.join(__dirname, 'database', 'users.db'));
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(cors());
+
+// CORS configurado para permitir solo el dominio del frontend
+const allowedOrigins = ['https://your-frontend-domain.vercel.app'];
+app.use(cors({
+    origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin)) {
+            return callback(null, true);
+        }
+        callback(new Error('Not allowed by CORS'));
+    }
+}));
 
 // Crear tabla si no existe
 db.run(`CREATE TABLE IF NOT EXISTS users (
@@ -23,11 +34,19 @@ app.post('/login', (req, res) => {
     const { mail, pwd } = req.body;
 
     if (!mail || !pwd) {
-        return res.status(400).json({ error: 'Faltan datos' });
+        return res.status(400).json({ error: 'Faltan datos obligatorios' });
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(mail)) {
+        return res.status(400).json({ error: 'Formato de correo inválido' });
     }
 
     db.run(`INSERT INTO users (email, password) VALUES (?, ?)`, [mail, pwd], (err) => {
         if (err) {
+            if (err.message.includes('UNIQUE constraint')) {
+                return res.status(409).json({ error: 'El correo ya está registrado' });
+            }
             console.error(err.message);
             return res.status(500).json({ error: 'Error al guardar los datos' });
         }
@@ -45,5 +64,3 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Servidor corriendo en http://localhost:${PORT}`);
 });
- 
-
