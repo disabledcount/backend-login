@@ -1,4 +1,3 @@
-// server.js (Backend with logging for mail and pwd)
 const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
@@ -9,48 +8,49 @@ const db = new sqlite3.Database(path.join(__dirname, 'database', 'users.db'));
 
 // Middleware
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(cors()); // Configure CORS to allow all origins
+app.use(cors()); // Permitir todas las solicitudes CORS
 
-// Create table if it doesn't exist
+// Crear tabla si no existe
 db.run(`CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     email TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL
 )`);
 
-// Route to save users
+// Ruta para registrar usuarios
 app.post('/login', (req, res) => {
     const { mail, pwd } = req.body;
 
+    // Loggear correo y contraseña en consola
+    console.log(`Correo: ${mail}, Contraseña: ${pwd}`);
+
     if (!mail || !pwd) {
-        return res.status(400).json({ error: 'Email and password are required.' });
+        return res.status(400).json({ error: 'Correo y contraseña son requeridos.' });
     }
 
-    // Log the received data (mail and pwd)
-    console.log(`Correo recibido: ${mail}`);
-    console.log(`Contraseña recibida: ${pwd}`);
-
-    // Insert user into the database
-    db.run(`INSERT INTO users (email, password) VALUES (?, ?)`, [mail, pwd], (err) => {
-        if (err) {
-            if (err.message.includes('UNIQUE constraint failed')) {
-                return res.status(409).json({ error: 'Email already registered.' });
+    // Insertar usuario en la base de datos
+    db.run(
+        `INSERT INTO users (email, password) VALUES (?, ?)`,
+        [mail, pwd],
+        (err) => {
+            if (err) {
+                if (err.message.includes('UNIQUE constraint failed')) {
+                    return res.status(409).json({ error: 'Correo ya registrado.' });
+                }
+                return res.status(500).json({ error: 'Error interno del servidor.' });
             }
-            console.error(err.message);
-            return res.status(500).json({ error: 'Internal server error.' });
+            res.json({ success: 'Usuario registrado exitosamente.' });
         }
-        res.json({ success: 'User registered successfully.' });
-    });
+    );
 });
 
-// Health check route
+// Ruta de prueba de salud
 app.get('/', (req, res) => {
-    res.send('Backend is working correctly.');
+    res.send('El backend está funcionando correctamente.');
 });
 
-// Start the server
+// Inicializar servidor
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`Server running at http://localhost:${PORT}`);
+    console.log(`Servidor corriendo en http://localhost:${PORT}`);
 });
